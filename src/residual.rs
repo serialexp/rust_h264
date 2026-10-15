@@ -157,7 +157,8 @@ pub fn dequant_luma_dc_i16x16(dc: &mut [i32; 16], qp: i32, scale_dc: u8) {
 }
 
 /// Dequantize chroma DC coefficients after Hadamard.
-/// Per spec 8.5.12.2. Uses scale[0] from the chroma scaling matrix.
+/// Per spec 8.5.12.2. For 4:2:0 this is `((c * LevelScale) << (qP / 6)) >> 5`, which,
+/// unlike luma DC, has no rounding term. Uses scale[0] from the chroma scaling matrix.
 pub fn dequant_chroma_dc(dc: &mut [i32; 4], qp: i32, scale_dc: u8) {
     let qp_per = qp / 6;
     let qp_rem = (qp % 6) as usize;
@@ -168,9 +169,8 @@ pub fn dequant_chroma_dc(dc: &mut [i32; 4], qp: i32, scale_dc: u8) {
             *d = d.wrapping_mul(v).wrapping_shl((qp_per - 5) as u32);
         }
     } else {
-        let round = 1 << (4 - qp_per);
         for d in dc.iter_mut() {
-            *d = (d.wrapping_mul(v).wrapping_add(round)) >> (5 - qp_per);
+            *d = d.wrapping_mul(v) >> (5 - qp_per);
         }
     }
 }
@@ -486,6 +486,24 @@ mod tests {
         for &v in &dc[1..] {
             assert_eq!(v, 0);
         }
+    }
+
+    #[test]
+    fn test_dequant_chroma_dc_low_qp_has_no_rounding() {
+        // Spec 8.5.12.2 (4:2:0): dcC =((c * LevelScale4x4(qP % 6, 0, 0)) << (qP / 6)) >> 5.
+        // At qP=1 with a flat matrix the scale is 11 * 16 = 176, so 176 >> 5 = 5
+        // and -176 >> 5 = -6; rounding would give 6 and -5.
+        let mut dc = [1, -1, 2, 0];
+        dequant_chroma_dc(&mut dc, 1, 16);
+        assert_eq!(dc, [5, -6, 11, 0]);
+    }
+
+    #[test]
+    fn test_dequant_chroma_dc_high_qp_shifts_left() {
+        // qP=31: qP / 6 = 5, so the scale 11 * 16 = 176 is used as is.
+        let mut dc = [1, -1, 0, 3];
+        dequant_chroma_dc(&mut dc, 31, 16);
+        assert_eq!(dc, [176, -176, 0, 528]);
     }
 
     #[test]

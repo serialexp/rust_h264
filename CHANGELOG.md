@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Chroma DC dequantisation at chroma QP below 6** — `dequant_chroma_dc` added a
+  rounding term before the right shift, which spec 8.5.12.2 does not have for
+  chroma DC (only luma DC rounds). Chroma came out ±1 off, and the error carried
+  through prediction to the end of the GOP. New byte-exact tests
+  `low_qp_chroma_cavlc_test` and `low_qp_chroma_cabac_test` (x264, QP=3).
+
 ## [0.4.0] - 2026-04-19
 
 ### Added

@@ -2077,6 +2077,20 @@ mod tests {
     }
 
     #[test]
+    fn test_low_qp_chroma_cavlc() {
+        // 64x64, 6 frames: x264 Main profile, CAVLC, QP=3, bframes=2 ref=2.
+        // Chroma QP below 6 makes the chroma DC dequantisation shift right,
+        // which per spec 8.5.12.2 has no rounding term (unlike luma DC).
+        decode_multiframe_and_compare("low_qp_chroma_cavlc_test", 6, 64, 64);
+    }
+
+    #[test]
+    fn test_low_qp_chroma_cabac() {
+        // Same as test_low_qp_chroma_cavlc, with CABAC.
+        decode_multiframe_and_compare("low_qp_chroma_cabac_test", 6, 64, 64);
+    }
+
+    #[test]
     fn test_jm_field_flat() {
         // 64x64 (combined), 1 frame: JM encoder, Main profile, CAVLC,
         // field pictures (field_pic_flag=1) with flat gray content (128).
